@@ -1,0 +1,13 @@
+{
+  "name": "daybook",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A personal reading app: feeds, newsletters, video and podcasts in one quiet list.",
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "fast-xml-parser": "4.5.0"
+  }
+}

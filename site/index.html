@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daybook</title>
+<meta name="description" content="A personal reading list: feeds, newsletters, video and podcasts.">
+<meta name="theme-color" content="#f3f5f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1513" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Daybook">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap">
+<style>
+/* Layout idea: a ruled daybook. One column, days separated by a full-width rule
+   with the date hanging on it; the only colour is the unread mark. */
+:root {
+  --paper: #f3f5f0;
+  --sheet: #fbfcfa;
+  --ink: #17211d;
+  --quiet: #5f6c66;
+  --rule: #d3d9d2;
+  --accent: #0e6a5b;
+  --mark: #d6452c;
+  --display: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --ui: "Familjen Grotesk", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --read-size: 19px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0f1513;
+    --sheet: #151d1a;
+    --ink: #e4eae5;
+    --quiet: #8d9a94;
+    --rule: #27322e;
+    --accent: #62c8b2;
+    --mark: #ff7a5e;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+[hidden] { display: none !important; }
+
+.wrap { max-width: 680px; margin: 0 auto; padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left)); }
+
+/* Masthead */
+.top {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--paper);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  padding-top: env(safe-area-inset-top);
+  border-bottom: 1px solid var(--rule);
+}
+.masthead { display: flex; align-items: baseline; gap: 12px; padding-top: 14px; padding-bottom: 10px; }
+.name { font-family: var(--display); font-size: 30px; font-weight: 500; letter-spacing: -0.02em; line-height: 1; margin: 0; font-style: italic; }
+.status { flex: 1; font-size: 13px; color: var(--quiet); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status b { color: var(--mark); font-weight: 600; }
+.textbtn { font-size: 14px; font-weight: 500; color: var(--accent); padding: 8px 2px; min-height: 40px; text-decoration: none; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; font-size: 14px; font-weight: 500; padding: 7px 13px; min-height: 36px;
+  border: 1px solid var(--rule); border-radius: 999px; color: var(--quiet); white-space: nowrap;
+}
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.chip.toggle[aria-pressed="true"] { background: none; border-color: var(--mark); color: var(--mark); }
+
+/* Day list */
+.day { display: flex; align-items: center; gap: 12px; margin: 26px 0 2px; }
+.day h2 { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin: 0; white-space: nowrap; }
+.day::after { content: ""; flex: 1; height: 1px; background: var(--ink); opacity: 0.85; }
+.day span { font-size: 12px; color: var(--quiet); order: 3; font-variant-numeric: tabular-nums; }
+.entry { display: grid; grid-template-columns: 14px 1fr auto; column-gap: 0; padding: 15px 0 16px; border-bottom: 1px solid var(--rule); text-decoration: none; }
+.entry:last-child { border-bottom: 0; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mark); margin-top: 7px; }
+.entry.read .dot { background: none; }
+.entry .meta { grid-column: 2; font-size: 13px; color: var(--quiet); display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; }
+.entry .src { font-weight: 600; color: var(--ink); }
+.kind { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.entry h3 { grid-column: 2; font-family: var(--display); font-size: 22px; font-weight: 500; line-height: 1.18; letter-spacing: -0.012em; margin: 5px 0 0; text-wrap: balance; }
+.entry p { grid-column: 2; margin: 6px 0 0; font-size: 15px; color: var(--quiet); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.entry img { grid-column: 3; grid-row: 1 / span 3; width: 68px; height: 68px; object-fit: cover; border-radius: 3px; margin-left: 14px; background: var(--rule); }
+.entry.read h3, .entry.read .src { color: var(--quiet); font-weight: 400; }
+.entry.read img { opacity: 0.7; }
+
+.note { margin: 44px 0; font-family: var(--display); font-size: 21px; line-height: 1.35; color: var(--quiet); max-width: 30ch; }
+.note strong { color: var(--ink); font-weight: 500; }
+.foot { padding: 28px 0 calc(40px + env(safe-area-inset-bottom)); display: flex; gap: 20px; flex-wrap: wrap; border-top: 1px solid var(--rule); margin-top: 24px; }
+
+/* Reader */
+.bar { display: flex; align-items: center; gap: 4px; padding-top: 6px; padding-bottom: 6px; }
+.bar .grow { flex: 1; }
+.iconbtn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 500; color: var(--accent); border-radius: 8px; padding: 0 8px; }
+.iconbtn.on { color: var(--mark); }
+article.piece { padding-top: 26px; padding-bottom: 20px; }
+.piece .meta { font-size: 13px; color: var(--quiet); display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; }
+.piece .meta .src { color: var(--ink); font-weight: 600; }
+.piece h1 { font-family: var(--display); font-weight: 500; font-size: clamp(30px, 8vw, 42px); line-height: 1.06; letter-spacing: -0.022em; margin: 12px 0 14px; text-wrap: balance; }
+.piece .by { font-size: 14px; color: var(--quiet); padding-bottom: 18px; border-bottom: 1px solid var(--ink); }
+.body { font-family: var(--display); font-size: var(--read-size); line-height: 1.55; padding-top: 22px; overflow-wrap: break-word; max-width: 34em; }
+.body > :first-child { margin-top: 0; }
+.body p { margin: 0 0 1em; }
+.body h3, .body h4 { font-family: var(--ui); font-size: 0.86em; font-weight: 600; letter-spacing: 0.01em; margin: 1.9em 0 0.5em; line-height: 1.25; }
+.body a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.body img, .body video { max-width: 100%; height: auto; border-radius: 3px; display: block; margin: 1.2em 0; }
+.body figure { margin: 1.4em 0; }
+.body figcaption { font-family: var(--ui); font-size: 13px; color: var(--quiet); margin-top: -0.6em; }
+.body blockquote { margin: 1.3em 0; padding-left: 18px; border-left: 2px solid var(--mark); font-style: italic; }
+.body ul, .body ol { padding-left: 1.2em; margin: 0 0 1em; }
+.body li { margin-bottom: 0.35em; }
+.body pre, .body table { overflow-x: auto; display: block; font-size: 14px; }
+.body pre, .body code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.8em; }
+.body hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+.player { margin: 22px 0 4px; }
+.player audio { width: 100%; }
+.player iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 4px; background: #000; }
+.onward { display: flex; flex-wrap: wrap; gap: 10px; padding: 22px 0 calc(48px + env(safe-area-inset-bottom)); }
+.btn { display: inline-flex; align-items: center; min-height: 46px; padding: 0 18px; border-radius: 999px; background: var(--ink); color: var(--paper); font-weight: 500; font-size: 15px; text-decoration: none; }
+.btn.ghost { background: none; color: var(--ink); border: 1px solid var(--rule); }
+
+/* Sources and saved link form */
+.section-title { font-family: var(--display); font-size: 30px; font-weight: 500; letter-spacing: -0.02em; margin: 26px 0 6px; }
+.lede { color: var(--quiet); margin: 0 0 18px; max-width: 46ch; }
+.source { display: grid; grid-template-columns: 14px 1fr auto; padding: 13px 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+.source .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.source.bad .pip { background: var(--mark); }
+.source .n { font-weight: 600; }
+.source .u { grid-column: 2; font-size: 13px; color: var(--quiet); overflow-wrap: anywhere; }
+.source .e { grid-column: 2; font-size: 13px; color: var(--mark); margin-top: 2px; }
+.source .c { font-size: 13px; color: var(--quiet); font-variant-numeric: tabular-nums; }
+.addlink { display: flex; gap: 8px; margin: 18px 0 4px; }
+.addlink input { flex: 1; min-width: 0; min-height: 46px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 999px; background: var(--sheet); font-size: 16px; }
+.how { margin: 22px 0 0; padding: 0 0 0 1.2em; color: var(--quiet); max-width: 48ch; }
+.how li { margin-bottom: 8px; }
+.how code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .view { animation: rise 0.22s ease-out; }
+  @keyframes rise { from { opacity: 0.4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+}
+</style>
+</head>
+<body>
+
+<!-- LIST -->
+<div class="view" id="view-list">
+  <header class="top">
+    <div class="wrap">
+      <div class="masthead">
+        <h1 class="name">Daybook</h1>
+        <div class="status" id="status" aria-live="polite">Opening…</div>
+        <button class="textbtn" id="refresh" type="button">Refresh</button>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Show"></div>
+    </div>
+  </header>
+  <main class="wrap">
+    <form class="addlink" id="addlink" hidden>
+      <input id="linkurl" type="url" inputmode="url" placeholder="Paste a link to keep for later" autocomplete="off" aria-label="Link to save">
+      <button class="btn" type="submit">Save</button>
+    </form>
+    <div id="list"></div>
+    <footer class="foot">
+      <a class="textbtn" href="#sources">Sources</a>
+      <button class="textbtn" id="allread" type="button">Mark everything read</button>
+    </footer>
+  </main>
+</div>
+
+<!-- READER -->
+<div class="view" id="view-reader" hidden>
+  <header class="top">
+    <div class="wrap bar">
+      <a class="iconbtn" href="#" id="back">‹ Back</a>
+      <span class="grow"></span>
+      <button class="iconbtn" id="smaller" type="button" aria-label="Smaller text">A−</button>
+      <button class="iconbtn" id="bigger" type="button" aria-label="Larger text">A+</button>
+      <button class="iconbtn" id="save" type="button">Save</button>
+    </div>
+  </header>
+  <article class="wrap piece" id="piece"></article>
+</div>
+
+<!-- SOURCES -->
+<div class="view" id="view-sources" hidden>
+  <header class="top">
+    <div class="wrap bar"><a class="iconbtn" href="#">‹ Back</a></div>
+  </header>
+  <main class="wrap">
+    <h2 class="section-title">Sources</h2>
+    <p class="lede" id="sources-lede"></p>
+    <div id="sources"></div>
+    <ol class="how">
+      <li>Open <code>feeds.json</code> in your GitHub repository and tap the pencil.</li>
+      <li>Add a line such as <code>{ "name": "Site name", "url": "https://site.com" },</code> A site address, an RSS address or a YouTube channel address all work.</li>
+      <li>Commit. New items appear here within a few minutes, then every hour.</li>
+    </ol>
+    <div class="onward">
+      <a class="btn" id="editfeeds" target="_blank" rel="noopener" hidden>Edit sources on GitHub</a>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("daybook." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem("daybook." + k, JSON.stringify(v)); return true; } catch { return false; } },
+  };
+
+  const KINDS = [
+    ["all", "All"], ["article", "Articles"], ["newsletter", "Newsletters"],
+    ["video", "Video"], ["podcast", "Podcasts"], ["saved", "Saved"],
+  ];
+  const KIND_LABEL = { newsletter: "Letter", video: "Video", podcast: "Podcast", link: "Link" };
+
+  let data = { generatedAt: null, feeds: [], items: [] };
+  let read = new Set(store.get("read", []));
+  let saved = store.get("saved", {});       // id -> copy of the item, kept after the feed drops it
+  let filter = store.get("filter", "all");
+  let unreadOnly = store.get("unread", false);
+  let size = store.get("size", 19);
+  let listScroll = 0;
+  let current = null;
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+  const safeUrl = (u) => (/^https?:\/\//i.test(u || "") ? u : "");
+
+  /* ---------- time ---------- */
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  function ago(iso) {
+    const t = new Date(iso).getTime();
+    if (!t) return "";
+    const mins = Math.round((Date.now() - t) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return rtf.format(-mins, "minute");
+    if (mins < 60 * 24) return rtf.format(-Math.round(mins / 60), "hour");
+    return rtf.format(-Math.round(mins / 1440), "day");
+  }
+  const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  function dayLabel(iso) {
+    const d = new Date(iso);
+    if (!d.getTime()) return "Undated";
+    const today = new Date(), y = new Date(); y.setDate(y.getDate() - 1);
+    if (dayKey(d) === dayKey(today)) return "Today";
+    if (dayKey(d) === dayKey(y)) return "Yesterday";
+    return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  }
+  const clock = (iso) => { const d = new Date(iso); return d.getTime() ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : ""; };
+
+  /* ---------- article HTML is cleaned before it is shown ---------- */
+  const ALLOWED = new Set("P BR A EM STRONG B I U S BLOCKQUOTE UL OL LI H3 H4 IMG FIGURE FIGCAPTION PRE CODE HR SUP SUB TABLE THEAD TBODY TR TH TD".split(" "));
+  const DROP = new Set("SCRIPT STYLE IFRAME OBJECT EMBED FORM INPUT BUTTON SELECT TEXTAREA NOSCRIPT SVG LINK META TEMPLATE".split(" "));
+  const RENAME = { H1: "H3", H2: "H3", H5: "H4", H6: "H4", DIV: "P", SECTION: "P" };
+  function clean(html, base) {
+    const doc = new DOMParser().parseFromString(`<body>${html || ""}</body>`, "text/html");
+    const out = document.createDocumentFragment();
+    const walk = (node, into) => {
+      for (const child of [...node.childNodes]) {
+        if (child.nodeType === 3) { into.appendChild(document.createTextNode(child.nodeValue)); continue; }
+        if (child.nodeType !== 1 || DROP.has(child.tagName)) continue;
+        const tag = RENAME[child.tagName] || child.tagName;
+        if (!ALLOWED.has(tag)) { walk(child, into); continue; }
+        if (tag === "P" && child.tagName !== "P" && child.querySelector("p,div,ul,ol,figure,blockquote,h1,h2,h3,h4,table,pre")) { walk(child, into); continue; }
+        const el = document.createElement(tag);
+        if (tag === "A") {
+          let href = ""; try { href = new URL(child.getAttribute("href") || "", base || undefined).href; } catch {}
+          if (!safeUrl(href)) { walk(child, into); continue; }
+          el.href = href; el.target = "_blank"; el.rel = "noopener noreferrer";
+        }
+        if (tag === "IMG") {
+          let src = ""; try { src = new URL(child.getAttribute("src") || child.getAttribute("data-src") || "", base || undefined).href; } catch {}
+          const w = +child.getAttribute("width"), h = +child.getAttribute("height");
+          if (!/^https:\/\//i.test(src) || (w && w < 4) || (h && h < 4)) continue; // skips tracking pixels
+          el.src = src; el.alt = child.getAttribute("alt") || ""; el.loading = "lazy"; el.referrerPolicy = "no-referrer";
+        }
+        walk(child, el);
+        if (tag === "P" && !el.textContent.trim() && !el.querySelector("img")) continue;
+        into.appendChild(el);
+      }
+    };
+    walk(doc.body, out);
+    return out;
+  }
+  function paragraphs(text) {
+    const frag = document.createDocumentFragment();
+    for (const para of String(text || "").split(/\n\s*\n/)) {
+      if (!para.trim()) continue;
+      const p = document.createElement("p"); p.textContent = para.trim(); frag.appendChild(p);
+    }
+    return frag;
+  }
+
+  /* ---------- list ---------- */
+  function visible() {
+    let items;
+    if (filter === "saved") items = Object.values(saved).sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
+    else items = data.items.filter((i) => filter === "all" || i.kind === filter);
+    if (unreadOnly && filter !== "saved") items = items.filter((i) => !read.has(i.id));
+    return items;
+  }
+
+  function renderChips() {
+    const counts = {};
+    for (const i of data.items) if (!read.has(i.id)) { counts[i.kind] = (counts[i.kind] || 0) + 1; counts.all = (counts.all || 0) + 1; }
+    const present = new Set(data.items.map((i) => i.kind));
+    $("chips").innerHTML = KINDS
+      .filter(([k]) => k === "all" || k === "saved" || present.has(k) || k === filter)
+      .map(([k, label]) => `<button class="chip" type="button" data-kind="${k}" aria-pressed="${filter === k}">${label}</button>`)
+      .join("") + `<button class="chip toggle" type="button" data-unread aria-pressed="${unreadOnly}">Unread only</button>`;
+    const n = counts.all || 0;
+    const when = data.generatedAt ? `Updated ${ago(data.generatedAt)}` : "";
+    $("status").innerHTML = data.items.length ? `${n ? `<b>${n} unread</b> · ` : "All read · "}${esc(when)}` : esc(when);
+  }
+
+  function entryHtml(i) {
+    const k = KIND_LABEL[i.kind] ? `<span class="kind">${KIND_LABEL[i.kind]}</span>` : "";
+    const t = filter === "saved" ? ago(i.savedAt) : clock(i.published);
+    const img = safeUrl(i.image) ? `<img src="${esc(i.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : "";
+    return `<a class="entry${read.has(i.id) ? " read" : ""}" href="#r-${esc(i.id)}">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="meta"><span class="src">${esc(i.source)}</span>${k}<span>${esc(t)}</span></span>
+      <h3>${esc(i.title)}</h3>
+      ${i.excerpt ? `<p>${esc(i.excerpt)}</p>` : ""}
+      ${img}
+    </a>`;
+  }
+
+  function renderList() {
+    renderChips();
+    $("addlink").hidden = filter !== "saved";
+    $("allread").hidden = filter === "saved";
+    const items = visible();
+    const list = $("list");
+    if (!items.length) {
+      let msg;
+      if (filter === "saved") msg = "<strong>Nothing saved yet.</strong> Tap Save on any piece, or paste a link above, and it waits here on this phone.";
+      else if (!data.items.length && !data.generatedAt) msg = "<strong>No items yet.</strong> The first collection runs a few minutes after setup. Pull this page down or tap Refresh.";
+      else if (unreadOnly) msg = "<strong>You are up to date.</strong> Nothing unread here.";
+      else msg = "<strong>Nothing in this section yet.</strong>";
+      list.innerHTML = `<p class="note">${msg}</p>`;
+      return;
+    }
+    if (filter === "saved") { list.innerHTML = `<div class="day"><h2>Saved</h2><span>${items.length}</span></div>` + items.map(entryHtml).join(""); return; }
+    let html = "", last = null, bucket = [];
+    const flush = () => { if (bucket.length) html += `<div class="day"><h2>${esc(last)}</h2><span>${bucket.length}</span></div>` + bucket.join(""); bucket = []; };
+    for (const i of items) {
+      const label = dayLabel(i.published);
+      if (label !== last) { flush(); last = label; }
+      bucket.push(entryHtml(i));
+    }
+    flush();
+    list.innerHTML = html;
+  }
+
+  /* ---------- reader ---------- */
+  const find = (id) => data.items.find((i) => i.id === id) || saved[id] || null;
+
+  function renderReader(item) {
+    current = item;
+    const piece = $("piece");
+    const when = new Date(item.published || item.savedAt || 0);
+    const date = when.getTime() ? when.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "";
+    const k = KIND_LABEL[item.kind] ? `<span class="kind">${KIND_LABEL[item.kind]}</span>` : "";
+    piece.innerHTML = `
+      <div class="meta"><span class="src">${esc(item.source)}</span>${k}</div>
+      <h1>${esc(item.title)}</h1>
+      <div class="by">${esc([item.author, date].filter(Boolean).join(" · "))}</div>
+      <div class="player" id="player" hidden></div>
+      <div class="body" id="body"></div>
+      <div class="onward">
+        ${safeUrl(item.url) ? `<a class="btn" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${item.kind === "video" ? "Watch on YouTube" : `Open at ${esc(host(item.url))}`}</a>` : ""}
+        <button class="btn ghost" type="button" id="unread">Mark unread</button>
+      </div>`;
+    const player = $("player");
+    if (item.kind === "video" && /^[\w-]{6,}$/.test(item.videoId || "")) {
+      player.hidden = false;
+      player.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${esc(item.videoId)}" title="${esc(item.title)}" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>`;
+    } else if (safeUrl(item.audio)) {
+      player.hidden = false;
+      player.innerHTML = `<audio controls preload="none" src="${esc(item.audio)}"></audio>`;
+    }
+    const body = $("body");
+    if (item.kind === "link") body.appendChild(paragraphs("This is a link you saved. It opens on the original site."));
+    else if (/<[a-z][\s\S]*>/i.test(item.html || "")) body.appendChild(clean(item.html, item.url));
+    else body.appendChild(paragraphs(item.html || item.excerpt));
+    if (!body.textContent.trim() && !body.querySelector("img")) body.appendChild(paragraphs("This source shares only the headline. Open the original to read it."));
+    $("unread").onclick = () => { read.delete(item.id); store.set("read", [...read]); location.hash = ""; };
+    setSave();
+    if (!read.has(item.id)) { read.add(item.id); store.set("read", [...read].slice(-4000)); }
+  }
+  function setSave() {
+    const on = current && !!saved[current.id];
+    $("save").textContent = on ? "Saved" : "Save";
+    $("save").classList.toggle("on", on);
+    $("save").setAttribute("aria-pressed", on);
+  }
+  $("save").onclick = () => {
+    if (!current) return;
+    if (saved[current.id]) delete saved[current.id];
+    else saved[current.id] = { ...current, savedAt: new Date().toISOString() };
+    if (!store.set("saved", saved) && saved[current.id]) {            // phone storage full: keep it without the body
+      saved[current.id] = { ...saved[current.id], html: "" }; store.set("saved", saved);
+    }
+    setSave();
+  };
+  function applySize() { document.documentElement.style.setProperty("--read-size", size + "px"); }
+  $("smaller").onclick = () => { size = Math.max(15, size - 1); store.set("size", size); applySize(); };
+  $("bigger").onclick = () => { size = Math.min(26, size + 1); store.set("size", size); applySize(); };
+
+  /* ---------- saved links ---------- */
+  $("addlink").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const input = $("linkurl");
+    let url = input.value.trim();
+    if (url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+    if (!safeUrl(url) || !host(url)) { input.focus(); return; }
+    const id = "l" + Date.now().toString(36);
+    const tail = decodeURIComponent(new URL(url).pathname.split("/").filter(Boolean).pop() || "").replace(/\.[a-z]+$/i, "").replace(/[-_]+/g, " ").trim();
+    saved[id] = { id, kind: "link", source: host(url), title: tail ? tail.charAt(0).toUpperCase() + tail.slice(1) : host(url), url, excerpt: "", savedAt: new Date().toISOString() };
+    store.set("saved", saved);
+    input.value = "";
+    renderList();
+  });
+
+  /* ---------- sources ---------- */
+  function renderSources() {
+    const bad = data.feeds.filter((f) => !f.ok).length;
+    $("sources-lede").textContent = data.feeds.length
+      ? `${data.feeds.length} source${data.feeds.length === 1 ? "" : "s"}, collected every hour.${bad ? ` ${bad} could not be reached last time.` : ""}`
+      : "No sources have been collected yet.";
+    $("sources").innerHTML = data.feeds.map((f) => `
+      <div class="source${f.ok ? "" : " bad"}">
+        <span class="pip" aria-hidden="true"></span>
+        <span class="n">${esc(f.name)}</span>
+        <span class="c">${f.ok ? `${f.count} item${f.count === 1 ? "" : "s"}` : "Not reached"}</span>
+        <span class="u">${esc(f.url)}</span>
+        ${f.ok ? "" : `<span class="e">${esc(f.error)}</span>`}
+      </div>`).join("");
+    const m = location.hostname.match(/^([\w-]+)\.github\.io$/i);
+    const repo = location.pathname.split("/").filter(Boolean)[0];
+    if (m && repo) { $("editfeeds").href = `https://github.com/${m[1]}/${repo}/edit/main/feeds.json`; $("editfeeds").hidden = false; }
+  }
+
+  /* ---------- routing ---------- */
+  function route() {
+    const h = location.hash.slice(1);
+    const wasList = !$("view-list").hidden;
+    if (wasList) listScroll = window.scrollY;
+    const item = h.startsWith("r-") ? find(h.slice(2)) : null;
+    $("view-reader").hidden = !item;
+    $("view-sources").hidden = h !== "sources";
+    $("view-list").hidden = !!item || h === "sources";
+    if (item) { renderReader(item); window.scrollTo(0, 0); }
+    else if (h === "sources") { renderSources(); window.scrollTo(0, 0); }
+    else { renderList(); window.scrollTo(0, listScroll); }
+  }
+  window.addEventListener("hashchange", route);
+
+  $("chips").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.kind) { filter = b.dataset.kind; store.set("filter", filter); }
+    else { unreadOnly = !unreadOnly; store.set("unread", unreadOnly); }
+    renderList(); window.scrollTo(0, 0);
+  });
+  $("allread").onclick = () => {
+    for (const i of visible()) read.add(i.id);
+    store.set("read", [...read].slice(-4000)); renderList();
+  };
+
+  /* ---------- data ---------- */
+  async function load(fresh) {
+    if (fresh) $("status").textContent = "Checking…";
+    try {
+      const res = await fetch("data/items.json" + (fresh ? "?t=" + Date.now() : ""), { cache: fresh ? "no-store" : "default" });
+      if (!res.ok) throw new Error(res.status);
+      data = await res.json();
+      store.set("cache", { generatedAt: data.generatedAt, feeds: data.feeds, items: data.items.map((i) => ({ ...i, html: "" })) });
+    } catch {
+      const cached = store.get("cache", null);
+      if (cached && !data.items.length) data = cached;
+    }
+    if (!location.hash.startsWith("#r-")) route(); else renderChips();
+  }
+  $("refresh").onclick = () => load(true);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && data.generatedAt && Date.now() - new Date(data.generatedAt).getTime() > 45 * 60000) load(true);
+  });
+
+  applySize();
+  route();
+  load(false).then(() => { if (location.hash.startsWith("#r-")) route(); });
+  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
