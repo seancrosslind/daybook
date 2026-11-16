@@ -85,6 +85,9 @@ a { color: inherit; }
   border: 1px solid var(--rule); border-radius: 999px; color: var(--quiet); white-space: nowrap;
 }
 .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.chip .n { font-size: 12px; color: var(--mark); font-variant-numeric: tabular-nums; margin-left: 2px; }
+.chip[aria-pressed="true"] .n { color: inherit; opacity: 0.7; }
+#cats { padding-bottom: 8px; }
 .chip.toggle[aria-pressed="true"] { background: none; border-color: var(--mark); color: var(--mark); }
 
 /* Day list */
@@ -173,6 +176,7 @@ article.piece { padding-top: 26px; padding-bottom: 20px; }
         <div class="status" id="status" aria-live="polite">Opening…</div>
         <button class="textbtn" id="refresh" type="button">Refresh</button>
       </div>
+      <div class="chips" id="cats" role="group" aria-label="Category" hidden></div>
       <div class="chips" id="chips" role="group" aria-label="Show"></div>
     </div>
   </header>
@@ -242,6 +246,7 @@ article.piece { padding-top: 26px; padding-bottom: 20px; }
   let read = new Set(store.get("read", []));
   let saved = store.get("saved", {});       // id -> copy of the item, kept after the feed drops it
   let filter = store.get("filter", "all");
+  let cat = store.get("cat", "all");
   let unreadOnly = store.get("unread", false);
   let size = store.get("size", 19);
   let listScroll = 0;
@@ -320,7 +325,7 @@ article.piece { padding-top: 26px; padding-bottom: 20px; }
   function visible() {
     let items;
     if (filter === "saved") items = Object.values(saved).sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
-    else items = data.items.filter((i) => filter === "all" || i.kind === filter);
+    else items = data.items.filter((i) => (filter === "all" || i.kind === filter) && (cat === "all" || (i.category || "Other") === cat));
     if (unreadOnly && filter !== "saved") items = items.filter((i) => !read.has(i.id));
     return items;
   }
@@ -329,8 +334,18 @@ article.piece { padding-top: 26px; padding-bottom: 20px; }
     const counts = {};
     for (const i of data.items) if (!read.has(i.id)) { counts[i.kind] = (counts[i.kind] || 0) + 1; counts.all = (counts.all || 0) + 1; }
     const present = new Set(data.items.map((i) => i.kind));
+    const cats = [];
+    for (const f of data.feeds) { const c = f.category || "Other"; if (f.ok && !cats.includes(c)) cats.push(c); }
+    if (cat !== "all" && !cats.includes(cat)) cat = "all";
+    const unreadIn = {};
+    for (const i of data.items) if (!read.has(i.id)) { const c = i.category || "Other"; unreadIn[c] = (unreadIn[c] || 0) + 1; }
+    const showCats = cats.length > 1 && filter !== "saved";
+    $("cats").hidden = !showCats;
+    if (showCats) $("cats").innerHTML = [["all", "Everything"], ...cats.map((c) => [c, c])]
+      .map(([c, label]) => `<button class="chip" type="button" data-cat="${esc(c)}" aria-pressed="${cat === c}">${esc(label)}${c !== "all" && unreadIn[c] ? ` <span class="n">${unreadIn[c]}</span>` : ""}</button>`).join("");
+    const kindsPresent = KINDS.filter(([k]) => present.has(k)).length;
     $("chips").innerHTML = KINDS
-      .filter(([k]) => k === "all" || k === "saved" || present.has(k) || k === filter)
+      .filter(([k]) => k === "all" || k === "saved" || (kindsPresent > 1 && present.has(k)) || k === filter)
       .map(([k, label]) => `<button class="chip" type="button" data-kind="${k}" aria-pressed="${filter === k}">${label}</button>`)
       .join("") + `<button class="chip toggle" type="button" data-unread aria-pressed="${unreadOnly}">Unread only</button>`;
     const n = counts.all || 0;
@@ -459,7 +474,7 @@ article.piece { padding-top: 26px; padding-bottom: 20px; }
         <span class="pip" aria-hidden="true"></span>
         <span class="n">${esc(f.name)}</span>
         <span class="c">${f.ok ? `${f.count} item${f.count === 1 ? "" : "s"}` : "Not reached"}</span>
-        <span class="u">${esc(f.url)}</span>
+        <span class="u">${f.category ? esc(f.category) + " · " : ""}${esc(f.url)}</span>
         ${f.ok ? "" : `<span class="e">${esc(f.error)}</span>`}
       </div>`).join("");
     const m = location.hostname.match(/^([\w-]+)\.github\.io$/i);
@@ -486,6 +501,11 @@ article.piece { padding-top: 26px; padding-bottom: 20px; }
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.kind) { filter = b.dataset.kind; store.set("filter", filter); }
     else { unreadOnly = !unreadOnly; store.set("unread", unreadOnly); }
+    renderList(); window.scrollTo(0, 0);
+  });
+  $("cats").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    cat = b.dataset.cat; store.set("cat", cat);
     renderList(); window.scrollTo(0, 0);
   });
   $("allread").onclick = () => {

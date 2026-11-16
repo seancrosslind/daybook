@@ -11,9 +11,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FEEDS_FILE = process.env.FEEDS_FILE || path.join(ROOT, "feeds.json");
 const OUT_FILE = path.join(ROOT, "site", "data", "items.json");
 
-const MAX_PER_FEED = 30; // newest items kept from each source
-const MAX_AGE_DAYS = 60; // older items are dropped
-const MAX_HTML = 80_000; // characters of article body kept per item
+const MAX_PER_FEED = 20; // newest items kept from each source
+const MAX_AGE_DAYS = 30; // older items are dropped
+const MAX_HTML = 60_000; // characters of article body kept per item
 const TIMEOUT_MS = 20_000;
 const UA = "Mozilla/5.0 (compatible; Daybook/1.0; personal feed reader)";
 
@@ -104,6 +104,8 @@ function discover(body, pageUrl) {
   return null;
 }
 
+const COMMON_PATHS = ["/feed/", "/rss/", "/rss.xml", "/feed.xml", "/atom.xml", "/index.xml", "/rss"];
+
 function youtubeFeedFor(url) {
   const m = url.match(/youtube\.com\/channel\/(UC[\w-]{20,})/i);
   return m ? `https://www.youtube.com/feeds/videos.xml?channel_id=${m[1]}` : null;
@@ -174,12 +176,28 @@ function parseFeed(xml, source, feedUrl) {
 
 async function loadSource(source) {
   let url = youtubeFeedFor(source.url) || source.url;
-  let body = await get(url);
-  if (!looksLikeFeed(body)) {
-    const found = discover(body, url);
-    if (!found) throw new Error("No feed found at this address. Try the site's RSS link instead.");
-    url = found;
+  let body = "";
+  let firstError = null;
+  try {
     body = await get(url);
+  } catch (e) {
+    firstError = e;
+  }
+  if (!looksLikeFeed(body)) {
+    // Not a feed: look for one the page advertises, then try the usual addresses.
+    const candidates = [];
+    const found = body ? discover(body, url) : null;
+    if (found) candidates.push(found);
+    if (/^https?:/i.test(url)) for (const p of COMMON_PATHS) candidates.push(new URL(p, url).href);
+    body = "";
+    for (const candidate of candidates) {
+      if (candidate === url) continue;
+      try {
+        const attempt = await get(candidate);
+        if (looksLikeFeed(attempt)) { body = attempt; url = candidate; break; }
+      } catch {}
+    }
+    if (!body) throw firstError || new Error("No feed found at this address. Try the site's RSS link instead.");
   }
   return { ...parseFeed(body, source, url), feedUrl: url };
 }
@@ -196,7 +214,7 @@ async function main() {
     const id = hash(source.url);
     if (r.status === "rejected") {
       const reason = r.reason?.name === "TimeoutError" ? "The site took too long to answer" : r.reason?.message || "Could not be fetched";
-      feeds.push({ id, name: source.name || source.url, url: source.url, kind: source.kind || "article", ok: false, error: reason, count: 0 });
+      feeds.push({ id, name: source.name || source.url, url: source.url, category: source.category || "", kind: source.kind || "article", ok: false, error: reason, count: 0 });
       console.warn(`✗ ${source.name || source.url}: ${reason}`);
       return;
     }
@@ -206,8 +224,8 @@ async function main() {
       .filter((it) => new Date(it.published).getTime() === 0 || new Date(it.published).getTime() >= cutoff)
       .sort((a, b) => b.published.localeCompare(a.published))
       .slice(0, MAX_PER_FEED);
-    for (const it of kept) items.push({ ...it, id: `${id.slice(0, 4)}${it.id}`, feed: id, source: name });
-    feeds.push({ id, name, url: source.url, site, kind: kept[0]?.kind || source.kind || "article", ok: true, count: kept.length });
+    for (const it of kept) items.push({ ...it, id: `${id.slice(0, 4)}${it.id}`, feed: id, source: name, category: source.category || "" });
+    feeds.push({ id, name, url: source.url, category: source.category || "", site, kind: kept[0]?.kind || source.kind || "article", ok: true, count: kept.length });
     console.log(`✓ ${name}: ${kept.length} items`);
   });
 

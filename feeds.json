@@ -1,5 +1,22 @@
 [
-  { "name": "Dezeen", "url": "https://www.dezeen.com/feed/" },
-  { "name": "UX Collective", "url": "https://uxdesign.cc/feed" },
-  { "name": "99% Invisible", "url": "https://feeds.simplecast.com/BqbsxVfO", "kind": "podcast" }
+  { "name": "ProPublica", "url": "https://www.propublica.org/feeds/propublica/main", "category": "Investigations" },
+  { "name": "The Intercept", "url": "https://theintercept.com/feed/?rss", "category": "Investigations" },
+  { "name": "Bellingcat", "url": "https://www.bellingcat.com/feed/", "category": "Investigations" },
+  { "name": "ICIJ", "url": "https://www.icij.org/feed/", "category": "Investigations" },
+  { "name": "Lighthouse Reports", "url": "https://www.lighthousereports.com/feed/", "category": "Investigations" },
+  { "name": "Evident Media", "url": "https://www.youtube.com/@evidentmedia", "category": "Investigations" },
+
+  { "name": "404 Media", "url": "https://www.404media.co/rss/", "category": "Tech" },
+  { "name": "The Register", "url": "https://www.theregister.com/headlines.atom", "category": "Tech" },
+
+  { "name": "The Economist", "url": "https://www.economist.com/leaders/rss.xml", "category": "Politics & economics" },
+  { "name": "Jacobin", "url": "https://jacobin.com/feed/", "category": "Politics & economics" },
+  { "name": "Zeteo", "url": "https://zeteo.com/feed", "category": "Politics & economics" },
+  { "name": "Grace Blakeley", "url": "https://graceblakeley.substack.com/feed", "category": "Politics & economics", "kind": "newsletter" },
+
+  { "name": "Nieman Lab", "url": "https://www.niemanlab.org/feed/", "category": "Journalism" },
+  { "name": "GIJN", "url": "https://gijn.org/feed/", "category": "Journalism" },
+  { "name": "Journalism.co.uk", "url": "https://www.journalism.co.uk/", "category": "Journalism" },
+
+  { "name": "Jason Pargin", "url": "https://jasonpargin.substack.com/feed", "category": "Writers", "kind": "newsletter" }
 ]
